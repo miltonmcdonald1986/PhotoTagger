@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <format>
 
 #include <allegro5/allegro.h>
@@ -20,6 +21,12 @@ public:
 		if (!al_init_font_addon())
 		{
 			al_show_native_message_box(nullptr, "Error", "Allegro5", "Failed to initialize font addon.", nullptr, ALLEGRO_MESSAGEBOX_ERROR);
+			return;
+		}
+
+		if (!al_init_native_dialog_addon())
+		{
+			al_show_native_message_box(nullptr, "Error", "Allegro5", "Failed to initialize native dialog addon.", nullptr, ALLEGRO_MESSAGEBOX_ERROR);
 			return;
 		}
 
@@ -96,6 +103,37 @@ public:
 
 	void Run()
 	{
+		ALLEGRO_FILECHOOSER* pFileChooser = al_create_native_file_dialog(R"(%USERPROFILE%)", "Select Directory", "*.*", ALLEGRO_FILECHOOSER_FOLDER);
+		if (!pFileChooser)
+		{
+			al_show_native_message_box(nullptr, "Error", "Allegro5", "Failed to create native file dialog.", nullptr, ALLEGRO_MESSAGEBOX_ERROR);
+			return;
+		}
+
+		if (!al_show_native_file_dialog(m_pDisplay, pFileChooser))
+		{
+			al_show_native_message_box(nullptr, "Error", "Allegro5", "Failed to show native file dialog.", nullptr, ALLEGRO_MESSAGEBOX_ERROR);
+			return;
+		}
+
+		auto dirPath = al_get_native_file_dialog_path(pFileChooser, 0);
+		for (const auto& entry : std::filesystem::recursive_directory_iterator(dirPath))
+		{
+			if (entry.is_regular_file())
+			{
+				al_set_window_title(m_pDisplay, entry.path().string().c_str());
+			}
+		}
+
+		al_destroy_native_file_dialog(pFileChooser);
+
+		ALLEGRO_BITMAP* pBitmap = al_load_bitmap(R"(C:\Users\milto\OneDrive\Documents\Pictures\Our Organized Photos\2024\01-2024\20240105_183951.jpg)");
+		if (!pBitmap)
+		{
+			al_show_native_message_box(nullptr, "Error", "Allegro5", "Failed to load bitmap.", nullptr, ALLEGRO_MESSAGEBOX_ERROR);
+			return;
+		}
+
 		bool done = false;
 		while (!done)
 		{
@@ -112,11 +150,16 @@ public:
 
 			al_clear_to_color(al_map_rgb(0, 0, 0));
 
+			al_draw_scaled_bitmap(pBitmap, 0., 0., al_get_bitmap_width(pBitmap), al_get_bitmap_height(pBitmap), 0., 0., 800, 600, 0);
+
 			ALLEGRO_MOUSE_STATE mouseState;
 			al_get_mouse_state(&mouseState);
 			int mouseX = al_get_mouse_state_axis(&mouseState, 0);
 			int mouseY = al_get_mouse_state_axis(&mouseState, 1);
 			al_draw_text(m_pFontCour, al_map_rgb(255, 255, 255), 0, 0, ALLEGRO_ALIGN_LEFT, std::format("MousePos: {}, {}", mouseX, mouseY).c_str());
+
+			
+
 
 			al_flip_display();
 		}
@@ -128,6 +171,7 @@ private:
 	Application(Application&& other) = delete;
 	Application& operator=(Application&& other) = delete;
 
+	ALLEGRO_BITMAP* m_pBitmap = nullptr;
 	ALLEGRO_DISPLAY* m_pDisplay = nullptr;
 	ALLEGRO_EVENT_QUEUE* m_pEventQueue = nullptr;
 	ALLEGRO_FONT* m_pFontCour = nullptr;
